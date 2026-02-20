@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #e8e8e8;
+      padding: 2rem;
+    }
+    #app {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      color: #fff;
+    }
+    .add-task {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .add-task input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #3a3a5c;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .add-task input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    .add-task input:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+    .add-task button {
+      padding: 0.75rem 1.25rem;
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+    .add-task button:hover {
+      background: #ff6b6b;
+    }
+    .add-task button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    .task-list {
+      list-style: none;
+    }
+    .task-item {
+      display: flex;
+      align-items: center;
+      padding: 0.875rem 1rem;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid #e94560;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .task-item .text {
+      flex: 1;
+      font-size: 1rem;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 1rem;
+    }
+    .error {
+      background: rgba(233, 69, 96, 0.2);
+      color: #ff6b6b;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .loading {
+      text-align: center;
+      padding: 1rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>To-Do List</h1>
+
+    <div class="add-task">
+      <input
+        v-model="newTaskText"
+        type="text"
+        placeholder="Add a new task..."
+        @keyup.enter="addTask"
+      >
+      <button @click="addTask" :disabled="isAdding || !newTaskText.trim()">
+        Add
+      </button>
+    </div>
+
+    <div v-if="error" class="error">{{ error }}</div>
+    <div v-if="loading" class="loading">Loading tasks...</div>
+
+    <ul v-else-if="tasks.length" class="task-list">
+      <li
+        v-for="task in tasks"
+        :key="task._id"
+        class="task-item"
+      >
+        <span class="text">{{ task.text }}</span>
+      </li>
+    </ul>
+
+    <div v-else class="empty-state">
+      No tasks yet. Add one above!
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        tasks: [],
+        newTaskText: '',
+        loading: true,
+        error: null,
+        isAdding: false
+      },
+      mounted() {
+        this.fetchTasks();
+      },
+      methods: {
+        async fetchTasks() {
+          this.loading = true;
+          this.error = null;
+          try {
+            const res = await fetch('/api/tasks');
+            if (!res.ok) throw new Error('Failed to load tasks');
+            this.tasks = await res.json();
+          } catch (err) {
+            this.error = 'Could not load tasks. Make sure the server is running.';
+            this.tasks = [];
+          } finally {
+            this.loading = false;
+          }
+        },
+        async addTask() {
+          const text = this.newTaskText.trim();
+          if (!text || this.isAdding) return;
+
+          this.isAdding = true;
+          this.error = null;
+          try {
+            const res = await fetch('/api/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+            if (!res.ok) throw new Error('Failed to add task');
+            const task = await res.json();
+            this.tasks.unshift(task);
+            this.newTaskText = '';
+          } catch (err) {
+            this.error = 'Could not add task. Please try again.';
+          } finally {
+            this.isAdding = false;
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
